@@ -9,7 +9,20 @@
     <textarea id="chat-log" cols="100" rows="20"></textarea><br>
     <input id="chat-message-input" type="text" size="100"><br>
     <input id="chat-message-submit" type="button" value="Send">
+    <span id="user-count">0</span>
     {{ room_name|json_script:"room-name" }}
+
+    <script>
+        var socket = new WebSocket("ws://" + window.location.host + "/chat/");
+
+        socket.onmessage = function (e) {
+            var data = JSON.parse(e.data);
+            var connectedUsers = data.active_users;
+            document.getElementById("user-count").textContent = connectedUsers;
+        };
+
+    </script>
+
     <script>
         const roomName = JSON.parse(document.getElementById('room-name').textContent);
 
