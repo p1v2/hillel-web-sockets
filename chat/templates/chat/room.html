@@ -9,6 +9,7 @@
     <textarea id="chat-log" cols="100" rows="20"></textarea><br>
     <input id="chat-message-input" type="text" size="100"><br>
     <input id="chat-message-submit" type="button" value="Send">
+    <span id="active-users-count"></span> active users<br>
     {{ room_name|json_script:"room-name" }}
     <script>
         const roomName = JSON.parse(document.getElementById('room-name').textContent);
@@ -21,6 +22,11 @@
             + '/'
         );
 
+        chatSocket.onopen = function(e) {
+            updateActiveUserCount(chatSocket);
+        };
+
+
         chatSocket.onmessage = function(e) {
             const data = JSON.parse(e.data);
             document.querySelector('#chat-log').value += (data.name + ': ' + data.message + '\n');
@@ -28,6 +34,21 @@
 
         chatSocket.onclose = function(e) {
             console.error('Chat socket closed unexpectedly');
+        };
+
+        function updateActiveUserCount(socket) {
+            socket.send(JSON.stringify({
+                'type': 'update_active_users_count'
+            }));
+        }
+
+        chatSocket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            if (data.active_users_count !== undefined) {
+                document.querySelector('#active-users-count').textContent = data.active_users_count;
+            } else {
+                document.querySelector('#chat-log').value += (data.name + ': ' + data.message + '\n');
+            }
         };
 
         document.querySelector('#chat-message-input').focus();
