@@ -4,6 +4,8 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
+    active_users = set()
+
     async def connect(self):
         self.room_name = self.scope["url_route"]["kwargs"]["room_name"]
         self.room_group_name = "chat_%s" % self.room_name
@@ -11,23 +13,33 @@ class ChatConsumer(AsyncWebsocketConsumer):
         # Join room group
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
 
+        # Add the user to the set of active users
+        self.active_users.add(self.channel_name)
+
         await self.accept()
 
     async def disconnect(self, close_code):
         # Leave room group
         await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
 
+        # Remove the user from the set of active users
+        self.active_users.remove(self.channel_name)
+
     # Receive message from WebSocket
     async def receive(self, text_data=None, bytes_data=None):
         data = text_data or bytes_data
         text_data_json = json.loads(data)
-        message = text_data_json["message"]
-        name = text_data_json["name"]
+        message = text_data_json.get("message")
+        name = text_data_json.get("name")
 
-        # Send message to room group
-        await self.channel_layer.group_send(
-            self.room_group_name, {"type": "chat_message", "message": message, "name": name}
-        )
+        if text_data_json.get("type") == "update_active_users_count":
+            active_users_count = len(self.active_users)
+            await self.send(json.dumps({"active_users_count": active_users_count}))
+        else:
+            # Send message to room group
+            await self.channel_layer.group_send(
+                self.room_group_name, {"type": "chat_message", "message": message, "name": name}
+            )
 
     # Receive message from room group
     async def chat_message(self, event):
